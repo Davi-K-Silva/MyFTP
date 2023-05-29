@@ -11,7 +11,6 @@ mode = SLOW_START
 receiver_ip = "127.0.0.1"  # Receiver's IP address
 receiver_port = 34754     # Receiver's port number
 
-
 # Read the file
 with open("testfile.txt", "rb") as file:
     file_data = file.read()
@@ -38,7 +37,7 @@ if syn_ack == b"SYN-ACK":
     print(total_chunks)
 
     cwnd = 1
-    cwnd_treshold = 16
+    cwnd_treshold = 8
     sent = 0
     waitingAcks=[]
     while seq_num < total_chunks:
@@ -62,7 +61,32 @@ if syn_ack == b"SYN-ACK":
                 print("Received ACK num: %d" % ack_seq_num)
                 if cwnd <= cwnd_treshold:
                     cwnd+=1
+                else:
+                    mode = CONGESTION_AVOIDANCE
+                    #print("[*] Changed to Congestion Avoidance [*]")
                 waitingAcks.remove(ack_seq_num-1)
+
+        if mode == CONGESTION_AVOIDANCE:
+            # Send packages
+            while sent != cwnd:
+                chunk = file_data[seq_num * chunk_size: (seq_num + 1) * chunk_size]
+                packet = str(seq_num).encode() + b":" + chunk
+                print("Sending part %d" % seq_num)
+                sock.sendto(packet, address)
+                waitingAcks.append(seq_num)
+                seq_num+=1
+                sent+=1
+            sent = 0
+
+            # Wait for ACKs
+            while len(waitingAcks) != 0:
+                received_ack, _ = sock.recvfrom(1024)
+                ack_seq_num = int(received_ack.decode())
+                print("Received ACK num: %d" % ack_seq_num)
+                waitingAcks.remove(ack_seq_num-1)
+            cwnd+=1
+            
+
             
         
 
