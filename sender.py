@@ -13,7 +13,7 @@ receiver_port = 34754     # Receiver's port number
 
 
 # Read the file
-with open("bible.txt", "rb") as file:
+with open("testfile.txt", "rb") as file:
     file_data = file.read()
 
 # Create a UDP socket
@@ -37,28 +37,34 @@ if syn_ack == b"SYN-ACK":
     total_chunks = (len(file_data) // chunk_size) + 1
     print(total_chunks)
 
-
-    n2send = 1
-    send = 0
+    cwnd = 1
+    cwnd_treshold = 16
+    sent = 0
+    waitingAcks=[]
     while seq_num < total_chunks:
 
-        # if mode == SLOW_START:
-        #     while send != n2send
+        if mode == SLOW_START:
+            # Send packages
+            while sent != cwnd:
+                chunk = file_data[seq_num * chunk_size: (seq_num + 1) * chunk_size]
+                packet = str(seq_num).encode() + b":" + chunk
+                print("Sending part %d" % seq_num)
+                sock.sendto(packet, address)
+                waitingAcks.append(seq_num)
+                seq_num+=1
+                sent+=1
+            sent = 0
+
+            # Wait for ACKs
+            while len(waitingAcks) != 0:
+                received_ack, _ = sock.recvfrom(1024)
+                ack_seq_num = int(received_ack.decode())
+                print("Received ACK num: %d" % ack_seq_num)
+                if cwnd <= cwnd_treshold:
+                    cwnd+=1
+                waitingAcks.remove(ack_seq_num-1)
             
-
-        chunk = file_data[seq_num * chunk_size: (seq_num + 1) * chunk_size]
-        packet = str(seq_num).encode() + b":" + chunk
-        print("Sending part %d" % seq_num)
-        sock.sendto(packet, address)
-
-    
-        # Wait for ACK
-        received_ack, _ = sock.recvfrom(1024)
-        ack_seq_num = int(received_ack.decode())
-        print("Received ACK num: %d" % ack_seq_num)
-
-        if ack_seq_num == seq_num + 1:
-            seq_num += 1
+        
 
 packet = str(-1).encode() + b":" + chunk
 sock.sendto(packet, address)
