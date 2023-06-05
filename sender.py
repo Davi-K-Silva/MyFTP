@@ -1,9 +1,15 @@
 import socket
+import math
+
 
 ### Conections mode
 SLOW_START = 1
 CONGESTION_AVOIDANCE = 2
-FAST_RETRANSMIT = 3
+def fastrestransmit(received_ack):
+    chunk = file_data[seq_num * chunk_size: (seq_num + 1) * chunk_size]
+    packet = str(seq_num).encode() + b":" + chunk
+    print("Sending part %d" % seq_num)
+    sock.sendto(packet, address)    
 
 mode = SLOW_START
 
@@ -18,12 +24,14 @@ with open("testfile.txt", "rb") as file:
 # Create a UDP socket
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-# Set up connection
+# Set up connection -------------------------------------------------------------------------- #
 print("Sending SYNC request to: %s" % receiver_ip)
 sock.sendto(b"SYN", (receiver_ip, receiver_port))
 
 syn_ack, address = sock.recvfrom(1024)
 
+
+# Trasnmition start -------------------------------------------------------------------------- #
 if syn_ack == b"SYN-ACK":
     print("ACK received")
 
@@ -36,12 +44,15 @@ if syn_ack == b"SYN-ACK":
     total_chunks = (len(file_data) // chunk_size) + 1
     print(total_chunks)
 
+    fastRestransmitCount=0
+    lastack = -1 
     cwnd = 1
-    cwnd_treshold = 8
-    sent = 0
-    waitingAcks=[]
+    cwnd_treshold = 8    # <-Trasnmition window treshhold to congestion avvoidance change
+    sent = 0             # <-Trasnmition control
+    waitingAcks=[]       # <-List of expected acks
     while seq_num < total_chunks:
-
+        
+        # ----------------------------------------------------------------------------------------- #
         if mode == SLOW_START:
             # Send packages
             while sent != cwnd:
@@ -59,13 +70,26 @@ if syn_ack == b"SYN-ACK":
                 received_ack, _ = sock.recvfrom(1024)
                 ack_seq_num = int(received_ack.decode())
                 print("Received ACK num: %d" % ack_seq_num)
+                
+                # Fast retrasnsmit Action ----------- #
+                if ack_seq_num == lastack:
+                    fastRestransmitCount+=1
+                    if fastRestransmitCount == 3:
+                        fastrestransmit(ack_seq_num)
+                        fastRestransmitCount = 0
+                        cwnd = int(math.ceil(cwnd/2))
+                # ----------------------------------- #
+
                 if cwnd <= cwnd_treshold:
                     cwnd+=1
                 else:
                     mode = CONGESTION_AVOIDANCE
                     #print("[*] Changed to Congestion Avoidance [*]")
+
+                lastack = ack_seq_num
                 waitingAcks.remove(ack_seq_num-1)
 
+        # ----------------------------------------------------------------------------------------- #
         if mode == CONGESTION_AVOIDANCE:
             # Send packages
             while sent != cwnd:
@@ -83,13 +107,21 @@ if syn_ack == b"SYN-ACK":
                 received_ack, _ = sock.recvfrom(1024)
                 ack_seq_num = int(received_ack.decode())
                 print("Received ACK num: %d" % ack_seq_num)
+                
+                # Fast retrasnsmit Action ----------- #
+                if ack_seq_num == lastack:
+                    fastRestransmitCount+=1
+                    if fastRestransmitCount == 3:
+                        fastrestransmit(ack_seq_num)
+                        fastRestransmitCount = 0
+                        cwnd = int(math.ceil(cwnd/2))
+                # ----------------------------------- #
+
+                lastack = ack_seq_num
                 waitingAcks.remove(ack_seq_num-1)
             cwnd+=1
-            
 
             
-        
-
 packet = str(-1).encode() + b":" + chunk
 sock.sendto(packet, address)
 # Close the socket

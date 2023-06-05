@@ -43,7 +43,9 @@ if syn_packet == b"SYN":
                 ack_packet = str(seq_num+1).encode()
                 sock.sendto(ack_packet, address)
                 expected_seq_num += 1
-
+            else:
+                ack_packet = str(expected_seq_num).encode()
+                sock.sendto(ack_packet, address)
 
         # Write the file
         with open("received_file.txt", "wb") as file:
