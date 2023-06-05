@@ -5,12 +5,14 @@ This program implements a protocol of file trasnferece in the same network using
 ## To-DO
 
 - [x] ~~Local conection~~
-- [ ] Same network connection
+- [x] ~~Same network connection~~
 - [ ] Program arguments
-- [ ] File name and extension passed by packet
+- [x] ~~File name and extension passed by packet~~
 - [x] ~~SLOW START technic~~
 - [x] ~~CONGESTION AVOIDANCE technic~~
 - [x] ~~FAST RESTRASNMIT technic~~
+- [ ] CRC checking
 - [ ] timeout
 - [ ] Error handling
 - [ ] testing
+ 

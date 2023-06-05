@@ -58,7 +58,7 @@ if start_ack == b"AGREED":
     fastRestransmitCount=0
     lastack = -1 
     cwnd = 1
-    cwndlimit = 12
+    cwndlimit = 32
     cwnd_treshold = 8    # <-Trasnmition window treshhold to congestion avvoidance change
     sent = 0             # <-Trasnmition control
     waitingAcks=[]       # <-List of expected acks
@@ -121,7 +121,7 @@ if start_ack == b"AGREED":
                 ack_seq_num = int(received_ack.decode())
                 print("Received ACK num: %d" % ack_seq_num)
                 
-                # Fast retrasnsmit Action ----------- #
+                # Fast retransmit Action ----------- #
                 if ack_seq_num == lastack:
                     fastRestransmitCount+=1
                     if fastRestransmitCount == 3:
