@@ -1,6 +1,6 @@
 import socket
 import math
-
+import sys
 
 ### Conections mode
 SLOW_START = 1
@@ -14,11 +14,16 @@ def fastrestransmit(received_ack):
 mode = SLOW_START
 
 # Sender details
-receiver_ip = "127.0.0.1"  # Receiver's IP address
-receiver_port = 34754     # Receiver's port number
+receiver_ip = "10.32.143.127"  # Receiver's IP address
+receiver_port = 34145     # Receiver's port number
+
+# Code start =============================================================================== #
+
+filename = sys.argv[1]
+print("#<<<<<< Sending: " + filename + " to: " + receiver_ip + " >>>>>>#")
 
 # Read the file
-with open("testfile.txt", "rb") as file:
+with open(filename, "rb") as file:
     file_data = file.read()
 
 # Create a UDP socket
@@ -30,11 +35,17 @@ sock.sendto(b"SYN", (receiver_ip, receiver_port))
 
 syn_ack, address = sock.recvfrom(1024)
 
-
-# Trasnmition start -------------------------------------------------------------------------- #
 if syn_ack == b"SYN-ACK":
-    print("ACK received")
+    print("Sync ok")
 
+sock.sendto(filename.encode(), (receiver_ip, receiver_port))
+
+start_ack, address = sock.recvfrom(1024)
+
+if start_ack == b"AGREED":
+    print("Agreed ACK received")
+
+# Transmition start ------------------------------------------------------------------------- #
     print("Sending Init transfer ACK")
     sock.sendto(b"ACK", address)
     
@@ -47,6 +58,7 @@ if syn_ack == b"SYN-ACK":
     fastRestransmitCount=0
     lastack = -1 
     cwnd = 1
+    cwndlimit = 12
     cwnd_treshold = 8    # <-Trasnmition window treshhold to congestion avvoidance change
     sent = 0             # <-Trasnmition control
     waitingAcks=[]       # <-List of expected acks
@@ -81,7 +93,8 @@ if syn_ack == b"SYN-ACK":
                 # ----------------------------------- #
 
                 if cwnd <= cwnd_treshold:
-                    cwnd+=1
+                    if cwnd < cwndlimit:
+                        cwnd+=1
                 else:
                     mode = CONGESTION_AVOIDANCE
                     #print("[*] Changed to Congestion Avoidance [*]")
@@ -119,7 +132,8 @@ if syn_ack == b"SYN-ACK":
 
                 lastack = ack_seq_num
                 waitingAcks.remove(ack_seq_num-1)
-            cwnd+=1
+            if cwnd < cwndlimit:
+                cwnd+=1
 
             
 packet = str(-1).encode() + b":" + chunk

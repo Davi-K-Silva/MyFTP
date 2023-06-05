@@ -4,11 +4,12 @@ import socket
 receiver_ip = "127.0.0.1"  # Receiver's IP address
 receiver_port = 34754     # Receiver's port number
 
+print("#<<<<<< Im at: " + receiver_ip + " on PORT: " + str(receiver_port)+ " >>>>>>#")
 # Create a UDP socket
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 # Bind the socket
-sock.bind((receiver_ip, receiver_port))
+sock.bind(('', receiver_port))
 
 # Connection setup
 syn_packet, address = sock.recvfrom(1024)
@@ -18,6 +19,11 @@ if syn_packet == b"SYN":
 
     print("Sendind SYN-ACK")
     sock.sendto(b"SYN-ACK", address)
+   
+    filename, _ = sock.recvfrom(1024)
+    print("Received filename: " + filename.decode() + "\nSending AGREE and waiting init ack")
+    sock.sendto(b"AGREED", address)
+   
     ack, _ = sock.recvfrom(1024)
 
     if ack == b"ACK":
@@ -48,7 +54,7 @@ if syn_packet == b"SYN":
                 sock.sendto(ack_packet, address)
 
         # Write the file
-        with open("received_file.txt", "wb") as file:
+        with open(filename, "wb") as file:
             file.write(file_data)
 
 # Close the socket
