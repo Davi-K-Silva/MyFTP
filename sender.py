@@ -1,25 +1,33 @@
 import socket
 import math
 import sys
+import crcmod
 
 ### Conections mode
 SLOW_START = 1
 CONGESTION_AVOIDANCE = 2
 def fastrestransmit(received_ack):
     chunk = file_data[seq_num * chunk_size: (seq_num + 1) * chunk_size]
-    packet = str(seq_num).encode() + b":" + chunk
+    crc_value = crc32_func(chunk)
+    packet = str(seq_num).encode() + b"|" + str(crc_value).encode() + b":"+ chunk
+
     print("Sending part %d" % seq_num)
     sock.sendto(packet, address)    
 
 mode = SLOW_START
+crc32_func = crcmod.predefined.mkCrcFun('crc-32')
 
 # Sender details
-receiver_ip = "10.32.143.127"  # Receiver's IP address
-receiver_port = 34145     # Receiver's port number
+receiver_ip = "127.0.0.1"  # Receiver's IP address
+receiver_port = 34754     # Receiver's port number
 
 # Code start =============================================================================== #
 
 filename = sys.argv[1]
+if sys.argv[2] != "-local":
+    receiver_ip = sys.argv[2]
+
+
 print("#<<<<<< Sending: " + filename + " to: " + receiver_ip + " >>>>>>#")
 
 # Read the file
@@ -69,7 +77,10 @@ if start_ack == b"AGREED":
             # Send packages
             while sent != cwnd:
                 chunk = file_data[seq_num * chunk_size: (seq_num + 1) * chunk_size]
-                packet = str(seq_num).encode() + b":" + chunk
+                crc_value = crc32_func(chunk)
+                packet = str(seq_num).encode() + b"|" + str(crc_value).encode() + b":"+ chunk
+
+                # print(len(packet))
                 print("Sending part %d" % seq_num)
                 sock.sendto(packet, address)
                 waitingAcks.append(seq_num)
@@ -107,7 +118,9 @@ if start_ack == b"AGREED":
             # Send packages
             while sent != cwnd:
                 chunk = file_data[seq_num * chunk_size: (seq_num + 1) * chunk_size]
-                packet = str(seq_num).encode() + b":" + chunk
+                crc_value = crc32_func(chunk)
+                packet = str(seq_num).encode() + b"|" + str(crc_value).encode() + b":"+ chunk
+
                 print("Sending part %d" % seq_num)
                 sock.sendto(packet, address)
                 waitingAcks.append(seq_num)
@@ -136,7 +149,8 @@ if start_ack == b"AGREED":
                 cwnd+=1
 
             
-packet = str(-1).encode() + b":" + chunk
+crc_value = crc32_func(chunk)
+packet = str(-1).encode() + b"|" + str(crc_value).encode() + b":"+ chunk
 sock.sendto(packet, address)
 # Close the socket
 sock.close()
