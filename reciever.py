@@ -4,15 +4,10 @@ import sys
 from socket import gethostbyname,gethostname
 
 def checkCRC(packet):
-    print("packet: " + str(packet))
     crc32_func = crcmod.predefined.mkCrcFun('crc-32')
     seq_num, _, chunkFirst = packet.partition(b"|")
     crc_packet, _ , chunk = chunkFirst.partition(b":")
-
-    print("this: " + str(crc32_func(chunk)))
-    print("packet crc: " + str(crc_packet))
     if str(crc32_func(chunk)).encode() == crc_packet:
-        print("crc ok")
         return True
     return False
     
@@ -50,8 +45,9 @@ if syn_packet == b"SYN":
         print("init Transfer ACK received")
         # Receive the file data
         expected_seq_num = 0
-        file_data = b""
+        file_data = []
         received_packets = []
+        lostpkg = False
 
         while True:
             packet, address = sock.recvfrom(1024)
@@ -65,21 +61,39 @@ if syn_packet == b"SYN":
                 
                 if seq_num == expected_seq_num and seq_num not in received_packets:
                     received_packets.append(seq_num)
-                    file_data += chunk
+                    file_data.append((seq_num,chunk))
                     print("received %d" % seq_num)
-                    #print(str(file_data))
-                    ack_packet = str(seq_num+1).encode()
+    
+                    if lostpkg:
+                        expected_seq_num = max(received_packets)+1
+                        lostpkg = False
+                    else:
+                        expected_seq_num += 1
+                    ack_packet = str(expected_seq_num).encode()
                     sock.sendto(ack_packet, address)
-                    expected_seq_num += 1
                 else:
+                    lostpkg= True
+                    received_packets.append(seq_num)
+                    file_data.append((seq_num,chunk))
                     ack_packet = str(expected_seq_num).encode()
                     sock.sendto(ack_packet, address)
             else:
-                    ack_packet = str(expected_seq_num).encode()
-                    sock.sendto(ack_packet, address)
+                lostpkg= True
+                print("Received Corrupted pkg - discarding")
+                ack_packet = str(expected_seq_num).encode()
+                sock.sendto(ack_packet, address)
+
+
         # Write the file
+        final_file = b""
+        expected = 0
+        file_data.sort(key=lambda x: x[0])
+        for seq in file_data:
+            _ , part = seq
+            final_file += part            
+
         with open(filename, "wb") as file:
-            file.write(file_data)
+            file.write(final_file)
 
 # Close the socket
 sock.close()
